@@ -1,4 +1,26 @@
 :page-classes: wide
 :page-layout: single
 
-Write something about yourself here!
+Hello, I'm *Matthias* and an enthusiastic software craftsman
+experienced in *Java* and *Kotlin*. My main focus are the *Spring* and *Ktor* ecosystem.
+
+'''
+
+Beside developing software I'm a technical reviewer of
+several books in the ecosystem of Kotlin.
+
+Finished:
+
+https://kt.academy/book/kotlin_essentials[Kotlin Essentials] by Marcin Moskala
+
+https://kt.academy/book/advanced_kotlin[Advanced Kotlin] by Marcin Moskala
+
+https://www.packtpub.com/en-us/product/kotlin-design-patterns-and-best-practices-9781805127765?srsltid=AfmBOopSNhnozCafEqOS3Za0B4oYO13PAmU1pIhz01pS7wTpwW5Eg5RX[Kotlin Design Patterns and Best Practices] by Alexey Soshin
+
+Currently in work
+
+Kotlin for Java Developers: Beginner to Advanced by José Dimas Luján Castillo
+
+'''
+
+Additionally I have an existing https://medium.com/@inzuael[Blog]
