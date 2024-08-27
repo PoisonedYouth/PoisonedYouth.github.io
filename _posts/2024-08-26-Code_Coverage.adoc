@@ -1,0 +1,233 @@
+= Why Code Coverage Alone Doesn't Guarantee Correct Functionality
+:imagesdir: /assets/images/posts/2024-08-26
+:page-excerpt: Why you should treat Code Coverage with caution.
+:page-tags: [kotlin, software, engineering, code coverage]
+:revdate: 2024-08-26
+
+image:header.png[Header]
+
+Recently, I have often come across the fact that code coverage is used as a very important metric for the quality of software both from development - and management side. Also in my career code coverage was used as a metric in most of the projects I worked on. From untested legacy project having nearly no coverage at all to project with nearly 95% of coverage I collected experience with all kind of projects. The code coverage in these projects is often used as quality gate in the build pipeline to force a specified minimum code coverage.
+
+In the beginning of my career I had a lot of trust in code coverage and I equated high code coverage with high code quality and a well-tested and reliable application. This was often a trap and only worked as long until the first bugs occurred. There were tests for that exact functionality but the tests did not prevent the bug before its occurrence. Meanwhile, after several of projects my trust in code coverage has changed and I take a more critical view of the topic.
+
+Today I want to talk about potential problems that can arise when focusing too much on code coverage. Let's start...
+
+== What is Code Coverage?
+Code coverage measures the percentage of your codebase that is executed when your tests run. For example, if you have 100 lines of code and your tests execute 90 of those lines, you have 90% code coverage.
+
+As Kotlin developers I often use tools like *JaCoCo* or *Kover* to measure code coverage. These tools provide insights into which parts of the code are being tested and which are not. A high percentage might give you confidence that your code is well-tested, but there's more to the story.
+
+== The Illusion of Safety
+
+Let's consider an example in Kotlin:
+
+[source,kotlin]
+----
+fun calculateDiscount(price: Double, isMember: Boolean): Double {
+    return if (isMember) {
+        price * 0.9
+    } else {
+        price
+    }
+}
+----
+A simple function that calculates a discount for members. Now, let's write unit tests for this function:
+
+[source,kotlin]
+----
+class DiscountCalculatorTest {
+
+    @Test
+    fun `calculateDiscount should consider discount for members`() {
+        // given
+        val price = 100.0
+        val isMember = true
+
+        // when
+        val actual = calculateDiscount(price = price, isMember = isMember)
+
+        // then
+        assertEquals(90.0, actual, 0.0)
+    }
+
+    @Test
+    fun `calculateDiscount should not consider discount for non-members`() {
+        // given
+        val price = 100.0
+        val isMember = true
+
+        // when
+        val actual = calculateDiscount(price = price, isMember = isMember)
+
+        // then
+        assertEquals(100.0, actual, 0.0)
+    }
+}
+----
+This test suite will give you 100% code coverage for the _calculateDiscount_ function. However, this doesn't necessarily mean your code is foolproof. Let’s explore why.
+
+=== Example 1: Logical Errors
+Even with full coverage, logical errors can slip through. Suppose the discount logic is incorrect, but still passes the tests:
+
+[source,kotlin]
+----
+fun calculateDiscount(price: Double, isMember: Boolean): Double {
+    return if (isMember) {
+        price * 0.8 // Incorrect logic, should be 0.9
+    } else {
+        price
+    }
+}
+----
+Your tests won't catch this error if they are only validating specific cases without ensuring the logic itself is sound. The tests pass, the code is covered, but the functionality is incorrect.
+
+=== Example 2: Missing Edge Cases
+
+Consider another example:
+
+[source,kotlin]
+----
+fun calculateDiscount(price: Double, isMember: Boolean): Double {
+    require(price >= 0) { "Price must be non-negative" }
+    return if (isMember) {
+        price * 0.9
+    } else {
+        price
+    }
+}
+----
+Here, we’ve added a requirement that the price must be non-negative. If your tests only cover typical use cases, like:
+
+[source,kotlin]
+----
+class DiscountCalculatorTest {
+
+    @Test
+    fun `calculateDiscount should consider discount for members`() {
+        // given
+        val price = 100.0
+        val isMember = true
+
+        // when
+        val actual = calculateDiscount(price = price, isMember = isMember)
+
+        // then
+        assertEquals(90.0, actual, 0.0)
+    }
+
+    @Test
+    fun `calculateDiscount should not consider discount for non-members`() {
+         // given
+        val price = 100.0
+        val isMember = false
+
+         // when
+        val actual = calculateDiscount(price = price, isMember = isMember)
+
+        // then
+        assertEquals(100.0, actual, 0.0)
+    }
+
+    @Test
+    fun `calculateDiscount should throw exception for negative number`() {
+        // given
+        val price = -100.0
+        val isMember = true
+
+        // when + then
+        assertThrows(IllegalArgumentException::class.java){
+            calculateDiscount(price = price, isMember = isMember)
+        }
+    }
+}
+----
+Even with 100% coverage, you miss the edge case for 0.0:
+
+[source,kotlin]
+----
+@Test
+fun `calculateDiscount should work for price of zero`() {
+    // given
+    val price = 0.0
+    val isMember = true
+
+    // when
+    val actual = calculateDiscount(price = price, isMember = isMember)
+
+    // then
+    assertEquals(0.0, actual, 0.0)
+}
+----
+If this edge case isn’t tested, your code might break in production when someone by mistake replaces the _>=_ with _>_ in the _require_ - condition, even though your line coverage is still 100%.
+
+=== Example 3: Coverage Without Assertions
+Another common pitfall is writing tests that execute the code but do not assert anything meaningful. Consider:
+
+[source,kotlin]
+----
+@Test
+fun `calculateDiscount should calculate correct discount`() {
+    calculateDiscount(price = 100.0, isMember = true)
+    calculateDiscount(price = 100.0, isMember = false)
+}
+----
+This test will contribute to code coverage statistics but does nothing to verify the correctness of the code. Code coverage tools will see that the code paths were executed, but there's no guarantee that the results are correct.
+
+=== Example 4: The Role of Mocking
+Developers often use mocking frameworks like *MockK*  or *Mockito* to isolate parts of the system under test. While mocking is a powerful tool, it can also give a false sense of security. Below you can find a very simple example:
+
+[source,kotlin]
+----
+fun calculateDiscount(price: Double, isMember: Boolean): Double {
+    require(price >= 0) { "Price must be non-negative" }
+    return if (isMember) {
+        price * externalService.getDiscount()
+    } else {
+        price
+    }
+}
+----
+
+[source,kotlin]
+----
+@Test
+fun `calculateDiscount should calculate correct discount for member`() {
+    // given
+    every { externalService.getDiscount() } returns 0.9
+
+    val price = 100.0
+    val isMember = true
+
+    // when
+    val actual = calculateDiscount(price = price, isMember = isMember)
+
+    // then
+    assertEquals(90.0, actual)
+}
+----
+Here, the test is passing due to the mock behavior, not because the code is correct. The real logic could be flawed, but the test won't reveal this because it depends on the mocks behavior rather than the actual implementation.
+
+=== Example 5: Increased Test Maintenance Effort
+Another critical issue with focusing too much on code coverage is the potential for increased test maintenance effort. As your codebase grows, maintaining high coverage often requires writing and maintaining a large number of tests.
+
+For instance, if you heavily rely on Kotlin's functional features like higher-order functions, lambdas, and extension functions, you might find yourself writing extensive test suites just to satisfy coverage requirements. This can lead to:
+
+- *Fragile Tests*: Tests that are tightly coupled to the implementation details rather than the desired behavior. When the implementation changes, even slightly, these tests may break, requiring frequent updates.
+
+- *Test Redundancy*: As code evolves, older tests might become redundant or irrelevant. However, maintaining these tests just for the sake of coverage can lead to wasted effort and clutter in the test suite.
+
+- *Slowed Development*: The more tests you have, the more time it takes to run them all, especially if many tests are just there to keep the coverage percentage high. This can slow down development, particularly in continuous integration (CI) environments.
+
+If your primary goal is high code coverage, you might end up spending more time writing tests to cover edge cases that are unlikely to occur in real-world scenarios, rather than focusing on the actual correctness of your code. In the end the tests are not written just for fulfilling coverage requirements but for verify that the application behaves as expected. A test that only costs maintenance effort and not prevents the introduction of bugs is maybe not a good one.
+
+== Conclusion: Beyond Code Coverage
+Code coverage is a useful metric for ensuring that your tests exercise the code. However, it is not a guarantee of correctness or quality. It is a tool that you as developer should have in your toolbox and that can help you to localize areas in the code that are not tested well and may need more focus, especially when bugs occurred in production. But as often in software development code coverage is no silver bullet that provides a objective metric about the project quality without going into detail.
+
+Instead of only focussing on coverage, here are some best practices to ensure your tests are meaningful:
+
+- **Focus on Logical Validation**: Test the logic of your functions, not just the inputs and outputs.
+- *Include Edge Cases*: Think about the full range of possible inputs, including unexpected or extreme values.
+- *Write Meaningful Assertions*: Ensure your tests verify the correctness of the results, not just that the code runs.
+- *Be Careful with Mocks*: Ensure that mocks do not obscure flaws in the underlying code.
+
+By moving beyond the illusion of safety provided by code coverage, developers can write more robust and reliable applications, ensuring that tests truly validate the functionality, not just the execution paths.
