@@ -1,5 +1,5 @@
 = Why Code Coverage Alone Doesn't Guarantee Correct Functionality
-:imagesdir: /assets/images/posts/2024-08-26
+:imagesdir: /assets/images/posts/2024/08/26
 :page-excerpt: Why you should treat Code Coverage with caution.
 :page-tags: [kotlin, software, engineering, code coverage]
 :revdate: 2024-08-26
