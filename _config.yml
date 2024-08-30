@@ -89,3 +89,5 @@ tag_archive:
 title: PoisonedYouth TechBlog
 
 url: https://poisonedyouth.github.io
+
+permalink: /:title
