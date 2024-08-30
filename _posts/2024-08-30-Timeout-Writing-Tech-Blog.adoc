@@ -1,0 +1,41 @@
+= Why It Was Time for a Break From Writing Techblog
+:imagesdir: /assets/images/posts/2024/08/30
+:page-excerpt: Why writing about technical topics should not feel like a job.
+:page-tags: [software, engineering, techblog, mental health]
+:revdate: 2024-08-30
+
+image:header.png[Header]
+
+When you already followed my posts in the past, you may have noticed, that there were no new posts between March and end of August.
+Normally, I published multiple blog posts every month so this was a long time without.
+Today I want to talk about the reasons for this break...
+
+I started my tech blog on the https://medium.com/[Medium] platform in June 2022. The reason for me to write blog posts was initially just an experiment.
+I'm writing a developer diary for a long time and I wondered if my learnings maybe can also be interesting for others.
+It was never the intention to continue writing blog posts in such a regular manner, because the content of my developer diary is not always enough for a post and writing posts without any value added for the reader is not my intent.
+
+I started writing blog posts without much thinking about how to make my content available for interested readers.
+I just recognized that a lot of posts I read that time, are hosted on *Medium,* and therefore I created an account and started writing on that platform.
+*Medium* provides all that is necessary for writing posts out-of-the-box.
+Also, the published posts are automatically available for a large audience that are following topics around the Kotlin ecosystem.
+That generated a lot of views from the beginning on.
+A lot of my posts also get published on publications like https://towardsdev.com[Towards Dev], https://proandroiddev.com[Pro Android Dev] or https://betterprogramming.pub[Better Programming].
+I also got a lot of positive feedback from different people, that motivated me to continue writing.
+
+That worked very well for my for about 1,5 years and I had always enough content to write posts, about 3-4 per month.
+I covered a lot of different topics during that time.
+But something changed silently over time.
+In the beginning I created posts as soon as I got time because enough content and ideas were available.
+It felt as nearly no effort to write.
+In the evening after finishing my fulltime job, it was a kind of cool-down to spend time working on my blog.
+As time went on, the time and effort I spent on it increased, and it felt more and more like work instead of relaxing.
+I pushed myself writing new blog posts at fixed intervals and the preparation took me a few weekends.
+I felt more and more like I was on a hamster wheel and had to spent more and more time and mental resources....that couldn't go well for long...Also, the fun step by step got away, and it was more like a mandatory task.
+
+It took me some time to fully understand what has happened and to accept, that I cannot continue the same way.
+That's why I took a conscious break until this week.
+After my holiday with the family I've got the feeling that the desire to write blog articles returned again.
+
+So I hope this is a second chance for me to continue writing blog posts.
+That should both makes fun for me and also provide you with added value.
+
