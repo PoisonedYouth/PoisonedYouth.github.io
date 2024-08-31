@@ -1,0 +1,23 @@
+= List of My Favorite Youtube Channels
+:page-excerpt: Valuable Youtube channels in the Kotlin/JVM ecosystem.
+:page-tags: [software, engineering, youtube, links, content]
+:revdate: 2024-08-31
+
+This is the list of *Youtube* channels / persons that I have subscribed to that provide very
+valuable content to improve the Kotlin / JVM ecosystem knowledge:
+
+- https://www.youtube.com/playlist?list=PLlFc5cFwUnmz1TwkP9SKCHU978dqLTANB[Talking Kotlin Podcast]
+
+- https://www.youtube.com/@typealias[Dave Leeds]
+
+- https://www.youtube.com/@PairingWithDuncan[Pairing with Duncan]
+
+- https://www.youtube.com/@rockthejvm[Rock The JVM]
+
+- https://www.youtube.com/@sivalabs[Sivalabs]
+
+- https://www.youtube.com/@meetkotlin7553[Meet Kotlin]
+
+- https://www.youtube.com/@coffeesoftware[Coffee + Software with Josh Long]
+
+- https://www.youtube.com/playlist?list=PLlFc5cFwUnmx-dpq9nkdaVJX0GnrM1Mp1[Server-Side Development with Kotlin]
