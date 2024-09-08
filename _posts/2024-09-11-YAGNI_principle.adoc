@@ -1,12 +1,12 @@
 = Understanding the YAGNI Principle: A Key to Efficient Software Development
-:imagesdir: /assets/images/posts/2024/09/09
+:imagesdir: /assets/images/posts/2024/09/11
 :page-excerpt: Don't pre-optimize your application.
 :page-tags: [kotlin, software, engineering, principle, yagni]
-:revdate: 2024-09-09
+:revdate: 2024-09-11
 
 image:header.png[Header]
 
-In my last post I talked about the KISS principle and its importance for software development. Today another acronym waits for explanation.
+In my last post I talked about the https://poisonedyouth.github.io/KISS_principle[KISS principle] and its importance for software development. Today another acronym waits for explanation.
 
 In the ever-evolving world of software development, there's a constant push to innovate, improve, and stay ahead of the curve. Developers are often tempted to anticipate future needs, adding features or capabilities that might be required down the line. However, this well-meaning approach can lead to bloated codebases, wasted effort, and slower development cycles. This is where the *YAGNI* principle comes into play.
 
