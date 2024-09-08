@@ -1,0 +1,340 @@
+= Delegated Properties in Kotlin
+:imagesdir: /assets/images/posts/2024/09/27
+:page-excerpt: Improve your code by delegating functionality.
+:page-tags: [software, engineering, kotlin, delegated, properties]
+:revdate: 2024-09-27
+
+image:header.png[Header]
+
+This week I have once again learned to appreciate how property delegation makes the code I have written much clearer, simpler and saves me writing a lot of boilerplate code over and over again. Delegated properties in Kotlin provide a powerful mechanism for separating the logic of a property from its usage. In this post, I want to give an overview about how to use property delegation and which use-cases exist.
+
+== Introduction
+As already mentioned property delegation allows delegating the implementation of property accessors (i.e., `get` and `set` methods) to another object. Instead of writing the boilerplate code for getters and setters, (especially when using custom logic), I can leverage Kotlin's delegation mechanisms to handle these operations seamlessly.
+
+=== The Concept
+In Kotlin, property delegation is achieved using the `by` keyword. When I declare a property with `by`, I'm instructing Kotlin to delegate the property's getter and/or setter to another object (the delegate). For this, the delegate must fulfill certain requirements.
+
+=== Benefits
+What is the reason behind this, and what is the advantage I gain from this, comparing to traditional implementation of getter/setter?
+
+- *Code Reusability*: Common property behaviors can be reused across different properties or classes. I can write the logic once, test it once and use it in multiple places.
+- *Separation of Concerns*: Logic related to property access is encapsulated within the delegate, keeping the class that uses the delegate clean.
+- *Lazy Initialization*: Initialize properties only when needed, saving resources on system startup.
+- *Observable Changes*: Automatically react to property changes, useful in reactive programming paradigms.
+
+== Syntax and Basic Usage
+The basic syntax for delegated properties involves the `by` keyword, followed by the delegate instance.
+
+[source, kotlin]
+----
+class MyClass {
+    var property: Int by Delegate()
+}
+----
+
+Here, `Delegate` is a class that handles the get and set operations for the property `property`. The delegate must provide `getValue` and `setValue` methods with a specific signatures.
+
+=== Delegate Requirements
+For a delegate to work with a property, it must define the following operator functions:
+
+For Mutable Properties (`var`):
+
+[source, kotlin]
+----
+operator fun getValue(thisRef: Any?, property: KProperty<*>): Int{
+    TODO()
+}
+operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Int){
+    TODO()
+}
+----
+
+For Read-Only Properties (`val`):
+
+[source,kotlin]
+----
+operator fun getValue(thisRef: Any?, property: KProperty<*>): Int{
+    TODO()
+}
+----
+
+Here, `thisRef` refers to the object containing the property, and `property` provides metadata about the property itself.
+
+Below, you can find a basic full example of a mutable property that prints how often the property is accessed in total. This example shows that a property delegate just consists of a few elements:
+
+[source, kotlin]
+----
+class MyClass {
+    var property: Int by Delegate(0)
+}
+
+class Delegate(private var value: Int) {
+    private var counter = 0
+
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): Int{
+        counter++
+        println("Accessed property $counter times")
+        return value
+    }
+    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Int){
+        counter++
+        println("Accessed property $counter times")
+        this.value = value
+    }
+}
+
+fun main() {
+    val myClass = MyClass()
+    println(myClass.property) // Accessed property 1 times
+    println(myClass.property) // Accessed property 2 times
+    myClass.property = 42     // Accessed property 3 times
+    println(myClass.property) // Accessed property 4 times
+}
+----
+
+== Built-in Delegates in Kotlin
+Kotlin provides several built-in delegates that cover common use cases, reducing the need to implement custom delegates for typical scenarios.
+
+=== Lazy Delegate
+The lazy delegate allows for lazy initialization of properties. The property's value is computed upon the first access and is cached for later accesses. This is particularly useful for resource-intensive operations that you want to defer until really necessary and not initially on application startup.
+
+The lazy function can take a parameter that defines the thread-safety mode:
+
+- `LazyThreadSafetyMode.SYNCHRONIZED` (default): Ensures that the initializer is called only once in a thread-safe manner.
+- `LazyThreadSafetyMode.PUBLICATION`: Allows multiple threads to initialize the value simultaneously but guarantees that all threads will see the same value.
+- `LazyThreadSafetyMode.NONE`: No thread safety; initializer can be called multiple times in concurrent environments.
+
+[source, kotlin]
+----
+val database by lazy {
+    println("Initializing database...")
+    Database.connect(...)
+}
+----
+
+In this example, the database property is initialized only when it's first accessed. This makes sense for heavy initialization operations that should be executed only if the property is accessed.
+
+
+=== Observable and Vetoable Delegates
+Kotlin's `Delegates` object provides observable and vetoable delegates for tracking property changes. These delegates are essential for scenarios where I need to react to changes in property values, such as updating the UI or enforcing constraints.
+
+==== Observable Delegate
+The observable delegate allows me to listen for changes to a property. I can execute custom logic whenever the property's value changes, such as logging, updating dependent properties, or triggering side effects.
+
+[source, kotlin]
+----
+import kotlin.properties.Delegates
+
+var name: String by Delegates.observable("Initial") { property, oldValue, newValue ->
+    println("${property.name} changed from $oldValue to $newValue")
+}
+----
+Parameters:
+
+- *initialValue*: The initial value of the property.
+- *handler*: A lambda function that receives the property metadata, old value, and new value.
+
+==== Vetoable Delegate
+The vetoable delegate allows mw to validate or veto changes to a property before they occur. This is useful for enforcing constraints or ensuring that only valid data is assigned to properties.
+
+[source, kotlin]
+----
+var age: Int by Delegates.vetoable(0) { property, oldValue, newValue ->
+    if (newValue >= 0) {
+        println("Age updated from $oldValue to $newValue")
+        true
+    } else {
+        println("Invalid age: $newValue. Change rejected.")
+        false
+    }
+}
+----
+Parameters
+
+- *initialValue*: The initial value of the property.
+- *handler*: A lambda function that receives the property metadata, old value, and new value, and returns a Boolean indicating whether to accept the change.
+
+=== Storing Properties in a Map
+Delegated properties can retrieve and store values in a `Map`, which is particularly useful for dynamic property handling, such as parsing JSON or handling configuration files. This approach allows for flexible and dynamic access to property values without defining explicit backing fields.
+
+[source, kotlin]
+----
+class ServerConfiguration(val map: Map<String, Any?>) {
+    val host: String by map
+    val port: Int by map
+}
+
+fun main() {
+    val configMap = mapOf(
+        "host" to "http://localhost",
+        "port" to 8080
+    )
+
+    val user = ServerConfiguration(configMap)
+    println(user.host)  // Outputs: "http://localhost"
+    println(user.port)  // Outputs: 8080
+}
+----
+In this example, the `ServerConfiguratoin` class's properties are backed by a `Map`, allowing for dynamic property retrieval.
+
+Use Cases
+
+- *Configuration Management*: Manage application settings that can vary between environments by storing them in a map.
+- *Data Parsing*: Simplify the parsing of data structures like JSON or XML by mapping properties directly to a data map.
+- *Dynamic Objects*: Create objects with properties defined at runtime, useful in scenarios like scripting engines or dynamic form handling.
+
+=== Providing Delegate Instances
+Kotlin also allows you to provide delegate instances via functions, enabling more flexible and reusable delegation patterns.
+
+[source, kotlin]
+----
+fun <T> provideDelegate(thisRef: Any?, property: KProperty<*>): ReadOnlyProperty<Any?, T> {
+    TODO()
+}
+----
+
+This can be used as shown below:
+
+[source, kotlin]
+----
+class ResourceDelegate(private val resourceId: Int) : ReadOnlyProperty<Any?, String> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): String {
+        // Logic to retrieve the resource based on resourceId
+        // For illustration, I'll return a dummy value
+        return "Resource with ID $resourceId"
+    }
+}
+
+fun resource(resourceId: Int) = ResourceDelegate(resourceId)
+
+class ResourceUser {
+    val resourceName: String by resource(101)
+    val resourceValue: String by resource(202)
+}
+
+fun main() {
+    val user = ResourceUser()
+    println(user.resourceName) // Outputs: Resource with ID 101
+    println(user.resourceValue) // Outputs: Resource with ID 202
+}
+----
+
+=== Creating Custom Delegates
+While Kotlin provides several built-in delegates, creating custom delegates allows me to encapsulate unique property behaviors tailored to your application's needs. I already showed a basic example at the beginning, but custom delegates can handle a wide range of scenarios, from logging and validation to more complex state management.
+
+The steps for the creation of a custom delegate are straightforward:
+
+- Define a Delegate Class: The class should implement the necessary operator functions (`getValue`, `setValue`) when it should be usable for mutable variables or only `getValue`, for immutable ones.
+
+- Implement `getValue` and `setValue`:
+
+- Define how the property value is retrieved and modified.
+
+- Use the Delegate with the `by` Keyword:
+
+- Assign the delegate to the property.
+
+''''
+Let's end the post with a more complex example.
+
+I first create the delegate class including the `getValue` and `setValue` methods.
+[source, kotlin]
+----
+/**
+ * A delegate that enforces validation rules on property assignments.
+ *
+ * @param T The type of the property.
+ * @property value The initial value of the property.
+ * @property validator A lambda function that takes the new value and returns true if it's valid.
+ * @property errorMessage The message to display if validation fails.
+ */
+class ValidationDelegate<T>(
+    private var value: T,
+    private val validator: (T) -> Boolean,
+    private val errorMessage: String
+) : ReadWriteProperty<Any, T> {
+
+    override fun getValue(thisRef: Any, property: KProperty<*>): T = value
+
+    override fun setValue(thisRef: Any, property: KProperty<*>, newValue: T) {
+        if (validator(newValue)) {
+            value = newValue
+        } else {
+            throw IllegalArgumentException("Invalid value for '${property.name}': $errorMessage")
+        }
+    }
+}
+
+----
+For a more intuitive usage, I create a function that can be used for delegation.
+
+[source, kotlin]
+----
+fun <T> validate(
+    initialValue: T,
+    validator: (T) -> Boolean,
+    errorMessage: String
+): ValidationDelegate<T> = ValidationDelegate(initialValue, validator, errorMessage)
+----
+
+With this, I can use the validate - delegation property in my code:
+
+[source, kotlin]
+----
+class User(initialAge: Int, initialEmail: String) {
+
+    var age: Int by validate(
+        initialValue = initialAge,
+        validator = { it >= 0 },
+        errorMessage = "Age must be non-negative"
+    )
+
+    var email: String by validate(
+        initialValue = initialEmail,
+        validator = { isValidEmail(it) },
+        errorMessage = "Email format is invalid"
+    )
+
+    private fun isValidEmail(email: String): Boolean {
+        return Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$").matches(email)
+    }
+}
+
+----
+
+A typical usage can look like below:
+
+[source, kotlin]
+----
+fun main() {
+    val user = User(initialAge = 25, initialEmail = "john.doe@example.com")
+    println("Initial Age: ${user.age}") // Outputs: Initial Age: 25
+    println("Initial Email: ${user.email}") // Outputs: Initial Email: john.doe@example.com
+
+    // Valid Updates
+    user.age = 30
+    user.email = "jane.doe@example.com"
+    println("Updated Age: ${user.age}") // Outputs: Updated Age: 30
+    println("Updated Email: ${user.email}") // Outputs: Updated Email: jane.doe@example.com
+
+    // Invalid Updates
+    try {
+        user.age = -5 // Throws IllegalArgumentException
+    } catch (e: IllegalArgumentException) {
+        println(e.message) // Outputs: Invalid value for 'age': Age must be non-negative
+    }
+
+    try {
+        user.email = "invalid-email" // Throws IllegalArgumentException
+    } catch (e: IllegalArgumentException) {
+        println(e.message) // Outputs: Invalid value for 'email': Email format is invalid
+    }
+}
+----
+Very straightforward usage, isn't it?
+
+
+== Conclusion
+
+Delegated properties in Kotlin are one of those features that I regularly use in my daily work. They encapsulate logic beautifully, making my code cleaner, more maintainable, and often more expressive. Whether I'm implementing lazy properties, managing state, or validating user input as I've shown in the `User` class example, delegates offer a way to simplify my code and avoid repetitive boilerplate. It also gives the advantage of separation of the business logic from the usage, also when it comes to testing.
+
