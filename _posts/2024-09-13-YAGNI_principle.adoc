@@ -1,18 +1,18 @@
 = Understanding the YAGNI Principle: A Key to Efficient Software Development
-:imagesdir: /assets/images/posts/2024/09/11
+:imagesdir: /assets/images/posts/2024/09/13
 :page-excerpt: Don't pre-optimize your application.
 :page-tags: [kotlin, software, engineering, principle, yagni]
-:revdate: 2024-09-11
+:revdate: 2024-09-13
 
 image:header.png[Header]
 
 In my last post I talked about the https://poisonedyouth.github.io/KISS_principle[KISS principle] and its importance for software development. Today another acronym waits for explanation.
 
-In the ever-evolving world of software development, there's a constant push to innovate, improve, and stay ahead of the curve. Developers are often tempted to anticipate future needs, adding features or capabilities that might be required down the line. However, this well-meaning approach can lead to bloated codebases, wasted effort, and slower development cycles. This is where the *YAGNI* principle comes into play.
+In the world of software development, there's a constant push to innovate, improve, and stay ahead of the curve. Developers are often tempted to anticipate future needs, adding features or capabilities that might be required down the line. However, this well-meaning approach can lead to bloated codebases, wasted effort, and slower development cycles. This is where the *YAGNI* principle comes into play.
 
 == What is YAGNI?
 
-*YAGNI* stands for *"You Aren't Gonna Need It."* It's a principle of extreme programming (XP) that advises developers to *avoid adding functionality unless it's absolutely necessary*. The core idea is simple: don't build features until they're required by the user or the project. The same is true for technical complexity: Don't implement technical functionality like e.g. distributed transactions, that is not necessary now.
+*YAGNI* stands for *"You Aren't Gonna Need It."* It's a principle of extreme programming (XP) that advises developers to *avoid adding functionality unless it's absolutely necessary*. The core idea is simple: don't build features until they're required by the user or the project. The same is true for technical complexity: Don't implement technical functionality like e.g. distributed transactions, messaging solutions with Kafka, that is not necessary now.
 
 At first glance, this might seem counterintuitive. Isn't it a good idea to prepare for future needs? While proactive planning is essential in software development, *YAGNI* emphasizes the importance of focusing on what’s needed *right now*. By doing so, developers can create more efficient, maintainable, and agile code.
 
@@ -25,7 +25,7 @@ Every new feature or piece of code adds complexity to a project. By only buildin
 When you stick to the essentials, you speed up the development process. You’re not spending time building, testing, and maintaining features that might never be used. This allows you to deliver the core functionality faster and iterate based on real user feedback.
 
 - *Improved Focus*
-*YAGNI* helps teams focus on delivering value. It ensures that development efforts are aligned with current project goals, rather than being distracted by speculative features. This focus leads to better product quality and user satisfaction.
+*YAGNI* helps teams focus on delivering value. It ensures that development efforts are aligned with current project goals, rather than being distracted by speculative features. This focus leads to better product quality and user satisfaction. This is one of my favorite arguments because having less things to care about in the development phase increases the quality of the results.
 
 - *Avoiding Waste*
 Time and resources are precious in any development project. By following *YAGNI*, you minimize waste by only working on what’s truly necessary. This aligns with the lean development philosophy, which aims to eliminate anything that doesn't add value to the customer.
@@ -54,6 +54,6 @@ Critics argue that *YAGNI* might cause developers to miss the bigger picture. In
 
 ==  Conclusion
 
-The *YAGNI* principle is a powerful tool for developers seeking to build efficient, maintainable, and user-focused software. By resisting the urge to over-engineer or anticipate future needs prematurely, teams can avoid unnecessary complexity, reduce waste, and deliver higher-quality products. In a fast-paced development environment, *YAGNI* helps keep the focus on what truly matters—delivering value to the user here and now.
+The *YAGNI* principle is a powerful tool in developers tool box seeking to build efficient, maintainable, and user-focused software. By resisting the urge to over-engineer or anticipate future needs prematurely, teams can avoid unnecessary complexity, reduce waste, and deliver higher-quality products. In a fast-paced development environment, *YAGNI* helps keep the focus on what truly matters—delivering value to the user here and now.
 
 Whether you're working on a small project or a large-scale application, keeping *YAGNI* in mind can lead to better decisions, faster development cycles, and ultimately, a more successful product. Remember, sometimes the best feature is the one you didn’t build.
