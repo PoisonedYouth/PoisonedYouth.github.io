@@ -1,0 +1,30 @@
+= How to start with DynamoDB in your Ktor application (2nd part)
+:imagesdir: /assets/images/posts/2024/09/22
+:page-excerpt: Learn about the advanced topics working with DynamoDB.
+:page-tags: [kotlin, software, engineering, dynamodb, ktor]
+:revdate: 2024-09-29
+
+image:header.png[Header]
+
+In the previous post, we covered how to integrate *DynamoDB* with a Ktor application, and I performed basic CRUD operations. In this follow-up, I will explore more advanced *DynamoDB* features, including composite keys, global secondary indexes (GSIs), custom type converters, batch processing, and filter expressions with query conditionals. These features allow you to work with more complex data models and efficiently query your data.
+
+== Composite Keys for Tables
+DynamoDB allows tables to have composite keys, which consist of a partition key and a sort key. A composite key enables you to uniquely identify an item based on a combination of these two keys, which provides more flexibility when querying data.
+
+Example: Using Composite Keys in a ProductOrder Table
+
+[source, kotlin]
+----
+@DynamoDbBean
+data class ProductEntity(
+    @DynamoKtPartitionKey
+    val productId: String, // partition key
+    @DynamoKtSortKey
+    val productName: String, // sort key
+    val price: Double
+)
+----
+
+In this example: `orderId` is the partition key and `productId` is the sort key.
+This allows you to query orders by orderId and get all the products associated with that order.
+
