@@ -154,7 +154,7 @@ For this it is necessary to include additional entries to the dependencies secti
 dependencies {
     implementation("software.amazon.awssdk:dynamodb-enhanced:2.28.1")
     implementation("software.amazon.awssdk:dynamodb:2.28.1")
-    implementation("com.github.oharaandrew314:dynamodb-kotlin-module:0.8.1")
+    implementation("dev.andrewohara:dynamokt:1.0.0")
 }
 ----
 
@@ -208,7 +208,6 @@ To separate the persistence from the domain model I create a separate data class
 
 [source,kotlin]
 ----
-@DynamoDbBean
 data class ProductEntity(
     @DynamoKtPartitionKey
     val productId: String,
@@ -217,10 +216,8 @@ data class ProductEntity(
 )
 ----
 
-There are 2 annotations necessary for using this class as an entity.
+There is 1 annotation necessary for using this class as an entity.
 
-- `@DynamoDbBean`:
-This identifies this class as being a *DynamoDB* mappable entity.
 - `@DynamoKtPartitionKey`: This identifies the partition key of the table. This is necessary for every *DynamoDB* table. It is also possible to provide a composite key but that is out of scope of this post.
 
 === Step 2: Create the DynamoDB Client
