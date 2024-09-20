@@ -1,44 +1,116 @@
-= How to start with DynamoDB in your Ktor application (2nd part)
+= How to start with DynamoDB in your Ktor application (Part 2)
 :imagesdir: /assets/images/posts/2024/09/22
-:page-excerpt: Learn about the advanced topics working with DynamoDB.
+:page-excerpt: Learn about designing tables.
 :page-tags: [kotlin, software, engineering, dynamodb, ktor]
 :revdate: 2024-09-29
 
 image:header.png[Header]
 
-In the previous post, we covered how to integrate *DynamoDB* with a Ktor application, and I performed basic CRUD operations. In this follow-up, I will explore more advanced *DynamoDB* features, including composite keys, global secondary indexes (GSIs), custom type converters, batch processing, and filter expressions with query conditionals. These features allow you to work with more complex data models and efficiently query your data.
+In the previous post, I covered how to integrate *DynamoDB* with a Ktor application, and I performed basic CRUD operations. In this follow-up, I will start with exploring more advanced *DynamoDB* features, starting with table design including composite keys.
 
-As starting point for this post I use the repository, that I created for the last article and
+As starting point for this post I use the GitHub repository, that I created for the last article and
 extend the existing functionality.
 
-== Composite Keys for Tables
-DynamoDB allows tables to have composite keys, which consist of a partition key and a sort key. A composite key enables you to uniquely identify an item based on a combination of these two keys, which provides more flexibility when querying data.
+Before I start with the topic of composite keys for tables it is necessary explain some important concepts first.
 
-Example: Using a composite key in the `ProductEntity` table instead of only the partition key.
+== Concepts
+=== What is a partition?
+Until now, I used the word "_partition_" multiple times but did not explain what does it mean in the context of *DynamoDB*. In *DynamoDB*, a partition is a fundamental concept that refers to the way data is distributed across multiple physical storage units for scalability and performance. *DynamoDB* automatically divides your table's data into partitions based on the following key factors:
+
+- *Partition Key* (Hash Key): Each item in *DynamoDB* has a partition key, which is part of the primary key. The value of the partition key is hashed, and this hash determines the partition in which the item will be stored. Items with the same partition key are stored together.
+
+- *Size of Data*: A partition can store up to 10 GB of data. Once a partition reaches this limit, *DynamoDB* automatically splits the data across more partitions.
+
+- *Provisioned Throughput* (or On-Demand Mode): *DynamoDB* also uses partitions to manage read and write capacity. Each partition can support a maximum of 3,000 read capacity units (RCUs) and 1,000 write capacity units (WCUs). If a table exceeds these throughput limits, *DynamoDB* will increase the number of partitions.
+
+=== Throughput and Capacity
+Throughput refers to the rate at which read and write operations can be performed on the tables. This throughput is measured and controlled using Read Capacity Units (RCUs) and Write Capacity Units (WCUs). The throughput capacity for a DynamoDB table can be specified, either in provisioned mode or on-demand mode, depending on the application's needs.
+
+==== Provisioned Mode
+You explicitly define the amount of RCUs and WCUs for your DynamoDB table.
+
+- *Read Capacity Units* (RCUs):
+1 RCU represents one strongly consistent read per second for an item up to 4 KB in size.
+For eventually consistent reads, 1 RCU can handle two reads per second for items up to 4 KB in size.
+
+- *Write Capacity Units* (WCUs):
+1 WCU represents one write per second for an item up to 1 KB in size.
+Example:
+If I have 10 RCUs, my table can perform 10 strongly consistent reads per second on 4 KB items, or 20 eventually consistent reads per second. If my items are larger than 4 KB, they consume more RCUs.
+Similarly, if I have 5 WCUs, my table can perform 5 writes per second for items of 1 KB or smaller.
+
+==== Demand Mode
+*DynamoDB* automatically scales the throughput based on the demand for the application. I don’t need to specify RCUs and WCUs in advance.
+You are billed based on the actual read and write requests your application makes.
+Scaling:
+
+==== Scaling
+Auto Scaling (in provisioned mode): DynamoDB can automatically adjust your table’s throughput settings in response to changes in application traffic. This prevents performance bottlenecks when traffic spikes or decreases.
+
+==== Throttling
+If your table exceeds the provisioned throughput (in provisioned mode), DynamoDB throttles requests, causing them to fail with a `ProvisionedThroughputExceededException`.
+Properly setting throughput and designing efficient partition keys are important to prevent throttling.
+
+==== Factors Affecting Throughput
+- Item Size: Larger items consume more capacity units.
+- Consistency of Reads: Strongly consistent reads consume more RCUs than eventually consistent reads.
+- Traffic Spikes: Sudden increases in traffic can lead to throttling if your throughput is not appropriately configured or if you're in provisioned mode without auto-scaling.
+
+
+Now that the necessary concepts are explained I can continue with the topic of composite keys.
+
+== Composite Keys for Tables
+In the previous post we had a ProductEntity with a partition key that consists of a single property (`productId`). We are sure that every entry in the table has a different value for `productId`. This is important because a partition key has to be unique. If you try to insert a second product with the same `productId` the existing item is updated and not a second one is inserted.
+
+*DynamoDB* allows tables to have composite keys, which consist of a partition key (hash key) and a sort key (range key). The partition key is used to determine the partition (or node) where the data is stored. The sort key is used to uniquely identify items within the same partition. Composite keys allow for more advanced data modelling and querying capabilities, especially when you need to retrieve multiple related items that share the same partition key.
+
+Example: Using a composite key in a `OrderEntity` table. Goal is to query all products for a particular order by using the `orderId` as the partition key. The sort key (`productId`) ensures that each product within that order is unique.
 
 [source, kotlin]
 ----
 @DynamoDbBean
-data class ProductEntity(
+data class OrderEntity(
     @DynamoKtPartitionKey
-    val productId: String, // partition key
+    val orderId: String,
     @DynamoKtSortKey
-    val orderId: String, // sort key
-    val productName: String,
-    val price: Double
+    val productId: String,
+    val amount: Double,
 )
 ----
 
-In this example: `productId` is the partition key and `orderId` is the sort key.
-This allows you to query products by productId and get all the orders associated with that product.
+This allows you to query orders by `orderId` and get all of them associated with a specified product.
 
-I update the `ProductEntity` as shown above and also update the `Product` domain model. To check if it is still possible to persist new products I also update the post request in the scratch file and execute it. Sadly this does not work and returns an exception:
+I create a repository for the `OrderEntity` and also a service and http endpoints for testing the functionality.
+I implement the repository in the same way the `ProductRepository` is implemented.
+When executing the endpoint for adding a new order, sadly this does not work and returns an exception:
 
 [source, kotlin]
 ----
-software.amazon.awssdk.services.dynamodb.model.DynamoDbException: The number of conditions on the keys is invalid (Service: DynamoDb, Status Code: 400, Request ID: a08921eb-662f-4dda-9329-9099015fe848)
+software.amazon.awssdk.services.dynamodb.model.DynamoDbException: The number of conditions on the keys is invalid (Service: DynamoDb, Status Code: 400, Request ID: 7e2df78e-d61e-40c3-a450-ad3bc546e54a)
 	at software.amazon.awssdk.services.dynamodb.model.DynamoDbException$BuilderImpl.build(DynamoDbException.java:104)
 	at software.amazon.awssdk.services.dynamodb.model.DynamoDbException$BuilderImpl.build(DynamoDbException.java:58)
 ----
 
-Debugging the exception I can see that the problem occurs inside the `findById` - function because just providing the partition id is no longer sufficient, but I also have to provide the sort id.
+Debugging the exception I can see that the problem occurs inside the `findById` - function because just providing the partition key is no longer enough, but I also have to provide the sort key.
+
+[source, kotlin]
+----
+ suspend fun findById(orderId: String, productId: String): Product? {
+     return table.getItem(
+        Key.builder().partitionValue(orderId).sortValue(productId).build()
+     ).await()?.toOrder()
+ }
+----
+
+Updating the repository method for finding an order also makes it necessary to update the `OrderService`. Restarting the application with these changes makes it possible again to create
+new orders.
+
+In the next step I also update the `deleteById` because it also needs the `productId` for deletion of an order.
+
+[source, kotlin]
+----
+suspend fun deleteById(orderId: String, productId: String) {
+    table.deleteItem(Key.builder().partitionValue(orderId).sortValue(productId).build()).await()
+}
+----
+
