@@ -8,10 +8,13 @@ image:header.png[Header]
 
 In the previous post, we covered how to integrate *DynamoDB* with a Ktor application, and I performed basic CRUD operations. In this follow-up, I will explore more advanced *DynamoDB* features, including composite keys, global secondary indexes (GSIs), custom type converters, batch processing, and filter expressions with query conditionals. These features allow you to work with more complex data models and efficiently query your data.
 
+As starting point for this post I use the repository, that I created for the last article and
+extend the existing functionality.
+
 == Composite Keys for Tables
 DynamoDB allows tables to have composite keys, which consist of a partition key and a sort key. A composite key enables you to uniquely identify an item based on a combination of these two keys, which provides more flexibility when querying data.
 
-Example: Using Composite Keys in a ProductOrder Table
+Example: Using a composite key in the `ProductEntity` table instead of only the partition key.
 
 [source, kotlin]
 ----
@@ -20,11 +23,22 @@ data class ProductEntity(
     @DynamoKtPartitionKey
     val productId: String, // partition key
     @DynamoKtSortKey
-    val productName: String, // sort key
+    val orderId: String, // sort key
+    val productName: String,
     val price: Double
 )
 ----
 
-In this example: `orderId` is the partition key and `productId` is the sort key.
-This allows you to query orders by orderId and get all the products associated with that order.
+In this example: `productId` is the partition key and `orderId` is the sort key.
+This allows you to query products by productId and get all the orders associated with that product.
 
+I update the `ProductEntity` as shown above and also update the `Product` domain model. To check if it is still possible to persist new products I also update the post request in the scratch file and execute it. Sadly this does not work and returns an exception:
+
+[source, kotlin]
+----
+software.amazon.awssdk.services.dynamodb.model.DynamoDbException: The number of conditions on the keys is invalid (Service: DynamoDb, Status Code: 400, Request ID: a08921eb-662f-4dda-9329-9099015fe848)
+	at software.amazon.awssdk.services.dynamodb.model.DynamoDbException$BuilderImpl.build(DynamoDbException.java:104)
+	at software.amazon.awssdk.services.dynamodb.model.DynamoDbException$BuilderImpl.build(DynamoDbException.java:58)
+----
+
+Debugging the exception I can see that the problem occurs inside the `findById` - function because just providing the partition id is no longer sufficient, but I also have to provide the sort id.
