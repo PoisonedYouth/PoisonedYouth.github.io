@@ -1,8 +1,8 @@
-= How to start with DynamoDB in your Ktor application
-:imagesdir: /assets/images/posts/2024/09/22
+= How to start with DynamoDB in your Ktor application (Part 1)
+:imagesdir: /assets/images/posts/2024/09/20
 :page-excerpt: Learn about the basics working with DynamoDB.
 :page-tags: [kotlin, software, engineering, dynamodb, ktor]
-:revdate: 2024-09-22
+:revdate: 2024-09-20
 
 image:header.png[Header]
 
