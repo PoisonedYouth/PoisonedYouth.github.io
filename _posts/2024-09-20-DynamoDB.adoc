@@ -324,7 +324,7 @@ suspend fun add(product: Product): Unit = coroutineScope {
         table.deleteItem(Key.builder().partitionValue(productId).build()).await()
     }
 
-    suspend fun updateProduct(product: Product) {
+    suspend fun update(product: Product) {
         table.updateItem(product.toProductEntity()).await()
     }
 ----
@@ -336,8 +336,9 @@ the access to the *DynamoDB* database from the rest of the application code.
 
 In the last step I need to provide some REST endpoints to test if the repository implementation is working as expected.
 
-Below you can find the functionality for a POST endpoint that allows to create new products.
+Below, you can find the functionality for a POST endpoint that allows to create new products.
 
+Service:
 [source, kotlin]
 ----
 class ProductService(
@@ -355,7 +356,7 @@ class ProductService(
 }
 ----
 
-
+Routing:
 [source, kotlin]
 ----
 fun Application.configureRouting(productService: ProductService) {
