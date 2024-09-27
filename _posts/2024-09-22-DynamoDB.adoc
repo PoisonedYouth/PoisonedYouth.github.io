@@ -457,6 +457,8 @@ In the next post I will continue with topics like:
 - Use converters for custom data types.
 - Use batch processing for read and write operations.
 - Filter expressions and query conditionals.
+- Time-to-live (TTL).
+- Sparse index.
 
 '''
 
