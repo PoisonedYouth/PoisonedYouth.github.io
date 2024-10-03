@@ -1,0 +1,276 @@
+= Interface Delegation in Kotlin
+:imagesdir: /assets/images/posts/2024/10/03
+:page-excerpt: Property delegation is not the only delegation.
+:page-tags: [software, engineering, kotlin, interface, delegation]
+:revdate: 2024-10-03
+
+image:header.png[Header]
+
+Last week I introduced the delegated properties feature that is part of the Kotlin language and can be used by using the `by` keyword. That is only half the truth; there is an additional delegation built-in the language - interface delegation, also working with the `by` keyword. So to give a complete overview about delegation in Kotlin, today I want to explain *interface delegation*.
+
+Interface delegation in Kotlin allows a class to delegate the implementation of an interface to another object. Instead of the class implementing the interface methods directly, it forwards the calls to a delegate object that provides the actual implementation.
+
+== How It Works
+Consider an interface `Printer` with two methods:
+
+[source, kotlin]
+----
+interface Printer {
+    fun print(value: String)
+
+    fun print(value: Int)
+}
+----
+Instead of a class implementing Printer directly, it can delegate the implementation to another object:
+
+[source, kotlin]
+----
+class ConsolePrinter : Printer {
+    override fun print(value: String) {
+        println("Printing String '$value'to console")
+    }
+
+    override fun print(value: Int) {
+        println("Printing Int '$value'to console")
+    }
+}
+
+class Document(printer: Printer) : Printer by printer
+
+fun main() {
+    val document = Document(ConsolePrinter())
+    document.print("Hello World!")
+    document.print(42)
+
+    //Output:
+    //Hello World!
+    //42
+}
+----
+Here, the `Document` class implements `Printer` by delegating all `Printer` methods to the printer object provided during its instantiation. The `Document` class can optionally overwrite one of the methods but this is not necessary.
+
+== Benefits of Using Interface Delegation
+
+- *Code Reusability*: Promote reuse of existing implementations without inheritance.
+- *Flexibility*: Easily swap out delegate implementations without altering the delegating class.
+- *Maintainability*: Reduce code duplication and simplify class hierarchies.
+- *Separation of Concerns (SoC)*: Delegate specific functionalities to dedicated classes, enhancing modularity.
+
+
+== Implementing Interface Delegation
+Let's explore interface delegation through various examples to understand its practical application.
+
+=== Basic Delegation Example
+Consider a simple scenario where a class needs to implement an interface but wants to delegate the implementation to another object.
+
+[source, kotlin]
+----
+interface Logger {
+    fun log(message: String)
+}
+
+class ConsoleLogger : Logger {
+    override fun log(message: String) {
+        println("Console Logger: $message")
+    }
+}
+
+class FileLogger : Logger {
+    override fun log(message: String) {
+        // Imagine writing to a file here
+        println("File Logger: $message")
+    }
+}
+
+class Application(logger: Logger) : Logger by logger {
+    fun run() {
+        log("Application started")
+        // Application logic here
+        // ...
+        log("Application finished")
+    }
+}
+
+fun main() {
+    val consoleApp = Application(ConsoleLogger())
+    consoleApp.run()
+
+    val fileApp = Application(FileLogger())
+    fileApp.run()
+}
+
+//Output:
+//Console Logger: Application started
+//Console Logger: Application finished
+//File Logger: Application started
+//File Logger: Application finished
+----
+
+The `Application` class implements `Logger` by delegating to the logger object.
+Depending on the Logger implementation passed via constructor parameter(`ConsoleLogger` or `FileLogger`), the log method behaves accordingly. This approach allows `Application` to use different logging strategies without changing its code. Together with dependency injection, this allows changing the behavior of the `Application` class for different environments, also improving testability - the functionality of the different `Logger` implementations can be tested separately.
+
+=== Delegation with Additional Functionality
+Delegation doesn't mean that the delegating class is limited to only forwarding method calls. It can also add its own behavior before or after the delegation call.
+
+[source, kotlin]
+----
+class TimestampLogger(private val logger: Logger) : Logger by logger {
+    override fun log(message: String) {
+        val timestampedMessage = "${System.currentTimeMillis()}: $message"
+        logger.log(timestampedMessage)
+    }
+}
+
+fun main() {
+    val logger = TimestampLogger(ConsoleLogger())
+    logger.log("This is a timestamped log.")
+}
+
+//Output:
+//Console Logger: 1701267582383: This is a timestamped log.
+----
+
+The `TimestampLogger` delegates to `logger` but overrides the log method to add a timestamp before delegating the method call. This showcases how delegation can be combined with method overriding to enhance or modify behavior.
+
+
+=== Delegation and Lazy Initialization
+Together with the property delegation, I've explained in the last post, I can use interface delegation to write a simple version of the `lazy` - delegate by my own (don't use this in production and stay with the built-in version).
+
+[source, kotlin]
+----
+import kotlin.reflect.KProperty
+
+class LazyDelegate<T>(private val initializer: () -> T) : Lazy<T> {
+    private var _value: T? = null
+    override val value: T
+        get() {
+            if (_value == null) {
+                _value = initializer()
+        }
+        return _value!!
+    }
+    override fun isInitialized(): Boolean = _value != null
+}
+
+class Config {
+    val configValue: String by LazyDelegate {
+        println("Initializing configValue")
+        "Config Data"
+    }
+}
+
+fun main() {
+val config = Config()
+println("Before accessing configValue")
+println("configValue: ${config.configValue}")
+println("Accessing configValue again")
+println("configValue: ${config.configValue}")
+}
+
+//Output:
+//Before accessing configValue
+//Initializing configValue
+//configValue: Config Data
+//Accessing configValue again
+//configValue: Config Data
+----
+
+`LazyDelegate` implements Kotlin's `Lazy<T>` interface, providing a custom lazy initialization mechanism.
+The `Config` class uses property delegation to lazily initialize `configValue`.
+The delegate ensures that configValue is initialized only once when accessed for the first time.
+
+=== Multiple Delegations
+A class can delegate to multiple interfaces, enabling it to conform to multiple types seamlessly.
+
+[source, kotlin]
+----
+interface Reader {
+    fun read()
+}
+
+interface Writer {
+    fun write()
+}
+
+class SimpleReader : Reader {
+    override fun read() {
+        println("Reading data")
+    }
+}
+
+class SimpleWriter : Writer {
+    override fun write() {
+        println("Writing data")
+    }
+}
+
+class ReadWriteDevice(reader: Reader, writer: Writer) : Reader by reader, Writer by writer
+
+fun main() {
+    val device = ReadWriteDevice(SimpleReader(), SimpleWriter())
+    device.read()
+    device.write()
+}
+
+//Output:
+//Reading data
+//Writing data
+----
+
+`ReadWriteDevice` delegates `Reader` and `Writer` interfaces to reader and writer objects respectively.
+This allows `ReadWriteDevice` to support both reading and writing functionalities without implementing the methods directly.
+
+== Comparison with Inheritance
+
+While both delegation and inheritance allow code reuse, they differ fundamentally:
+
+|===
+|Aspect |Inheritance |Delegation
+
+|*Relationship*
+|Is-a relationship
+|Has-a relationship
+
+|*Flexibility*
+|Rigid, single inheritance
+|Flexible, multiple delegations possible
+
+|*Coupling*
+|Tightly coupled to superclass
+|Loosely coupled via delegates
+
+|*Reusability*
+|Limited to superclass capabilities
+|Can compose multiple behaviors
+|===
+
+
+When to Use Delegation Over Inheritance:
+
+- *Multiple Behaviors*: When a class needs to exhibit multiple behaviors from different interfaces.
+- *Runtime Flexibility*: When behaviors need to be swapped or changed at runtime.
+- *Avoiding Hierarchical Complexity*: To prevent deep and complex inheritance hierarchies.
+- *Encapsulation*: To better encapsulate and manage responsibilities.
+
+=== Best Practices
+
+- Favor Composition Over Inheritance: Use delegation to compose behaviors rather than inheriting from base classes.
+- Interface Segregation: Design small, focused interfaces to make delegation more manageable and meaningful.
+- Immutability: When possible, delegate to immutable objects to avoid unintended side effects.
+- Clear Responsibilities: Ensure that delegate objects have well-defined responsibilities to maintain code clarity.
+
+=== Common Pitfalls
+
+- Overusing Delegation: While delegation is powerful, excessive use can lead to fragmented code that's hard to follow.
+- Circular Delegation: Avoid scenarios where delegates refer back to the delegating class, causing infinite loops.
+- Delegate State Management: Managing mutable state within delegates can introduce complexity and bugs.
+
+
+== Conclusion
+Together with property delegation, interface delegation in Kotlin is a useful feature that empowers me to write cleaner, more modular, and maintainable code. It follows the principle of composition over inheritance, allowing me to break down tasks and responsibilities into smaller, manageable parts. This makes the code easier to understand, change, and extend.
+
+The main advantages of interface delegation are:
+
+- *Flexibility*: I can easily add or change behaviors without modifying the main logic of your application.
+- *Separation of Concerns*: By delegating specific tasks to separate classes, I keep the code well-organized and easier to maintain.
+- **Reusability and Scalabilit**y: Delegated classes can be reused in different parts of the application. I can add new features without breaking the old ones.
