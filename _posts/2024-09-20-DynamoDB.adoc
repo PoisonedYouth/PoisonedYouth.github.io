@@ -314,9 +314,7 @@ suspend fun add(product: Product): Unit = coroutineScope {
 
      suspend fun findAll(): List<Product> {
         return buildList {
-            table.scan().subscribe { page ->
-                page.items().stream().forEach { item -> add(item.toProduct()) }
-            }.await()
+            table.scan().asFlow().collect { it.items().stream().forEach { item -> add(item.toProduct()) } }
         }
     }
 
