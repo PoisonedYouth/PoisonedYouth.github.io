@@ -31,7 +31,7 @@ class ConsolePrinter : Printer {
     }
 
     override fun print(value: Int) {
-        println("Printing Int '$value'to console")
+        println("Printing Int '$value' to console")
     }
 }
 
@@ -43,8 +43,8 @@ fun main() {
     document.print(42)
 
     //Output:
-    //Hello World!
-    //42
+    //Printing String 'Hello World!'to console
+    //"Printing Int '42' to console"
 }
 ----
 Here, the `Document` class implements `Printer` by delegating all `Printer` methods to the printer object provided during its instantiation. The `Document` class can optionally overwrite one of the methods but this is not necessary.
@@ -160,11 +160,11 @@ class Config {
 }
 
 fun main() {
-val config = Config()
-println("Before accessing configValue")
-println("configValue: ${config.configValue}")
-println("Accessing configValue again")
-println("configValue: ${config.configValue}")
+    val config = Config()
+    println("Before accessing configValue")
+    println("configValue: ${config.configValue}")
+    println("Accessing configValue again")
+    println("configValue: ${config.configValue}")
 }
 
 //Output:
