@@ -1,24 +1,22 @@
 = How to start with DynamoDB in your Ktor application (Part 3)
 :imagesdir: /assets/images/posts/2024/09/22
-:page-excerpt: Learn about the basics working with DynamoDB.
+:page-excerpt: Learn about advanced topics.
 :page-tags: [kotlin, software, engineering, dynamodb, ktor]
-:revdate: 2024-10-30
+:revdate: 2024-10-24
 
 image:header.png[Header]
 
-In the second part of my series about using `DynamoDB` in a Ktor application I give an overview about how
-the modeling of the table can be optimized to get a consistent performance even the table data is growing fast. This can be achieved by using composite keys, a good choosing of the primary key and the
-creation of global secondary indexes for different use cases. There are still topics uncovered that are important to know about when working with *DynamoDB*.
+In the second part of my series about using `DynamoDB` in a Ktor application I give an overview about how the modeling of tables can be optimized to get a consistent performance even the table data is growing fast. This can be achieved by using composite keys, a good choosing of the primary key and the creation of global secondary indexes for different use cases. But there are still topics uncovered that are important to know about when working with *DynamoDB*.
 
 So today I want to cover these additional topics:
 
-- Using converters in order to control how data is persisted. Until now I only used the data types that are directly supported by *DynamoDB* and persisted in the same way, but that's not always enough.
+- Using converters to control how data is persisted. Until now I only used the data types that are directly supported by *DynamoDB* and persisted in the same way, but that's not always enough.
 
 - Processing large amount of data by using the batch processing feature of *DynamoDB* both for reading and writing operations.
 
-- Until now, I only used `QueryConditionals` in the sample queries but there are additional filter expressions available.
+- Until now, I only used `QueryConditionals` in the queries but there are additional filter expressions available for query and scan operations.
 
-- Also, I want to talk about TTL, a way to automatically cleanup my tables to save storage.
+- Also, I want to talk about TTL, a way to automatically clean up my tables to save storage.
 
 - Lastly, I want to show how sparse indexes can improve scanning for items.
 
@@ -61,7 +59,7 @@ The starting point is a JSON object that consists of a user with multiple proper
 }
 ----
 
-Because I don't want to persist the address in a separate table, it should be persisted as part of the user. Also, the `jobStatus` should not be persisted as string but as number (to be able to change the name later without updating the items in the database). Lastly the `createdAt` property, that is a timestamp that depends on the localization, I want to store it with offset UTC.
+Because I don't want to persist the address in a separate table, it should be persisted as part of the user. Also, the `jobStatus` should not be persisted as string (using the name of the enum value) but as number (to be able to change the name later without updating the items in the database). Lastly the `createdAt` property, that is a timestamp that depends on the localization, I want to store it with offset UTC to not need to deal with timezones.
 
 So how can this be done?
 
@@ -124,10 +122,9 @@ Persisting the above JSON input will lead to the following entry in the *DynamoD
   }
 }
 ----
-Not what I expected. Although the embedded address is persisted correctly as an embedded map of properties, the `jobStatus` and the `createdAt` property are not as expected.
+Not what I expected. Although the embedded address is persisted correctly as an embedded map of properties inside the user item, the `jobStatus` and the `createdAt` property are not as expected. So it's time to implement custom converters.
 
-
-A converter can easily change this and be implemented by extending the `AttributeConverter` interface and specify the type that I want to convert.
+A converter can easily change the default behavior and be implemented by extending the `AttributeConverter` interface and specify the type that I want to convert.
 
 [source, kotlin]
 ----
@@ -162,7 +159,7 @@ class LocalDateTimeConverter : AttributeConverter<LocalDateTime> {
 }
 ----
 
-There are four methods I need to implement per converter:
+There are four methods I need to implement for every converter:
 
 - `transFormFrom(...)` is used for mapping a `JobStatus` to an `AttributeValue`, which already provides implementations for the built-in types. In my case I want to store the `jobStatus` as number, so I use the builder with the  `n(...)` - function to create the corresponding number attribute.
 
@@ -172,9 +169,9 @@ There are four methods I need to implement per converter:
 
 - `attributeValueType()` is used to specify the corresponding *DynamoDB* attribute type, in my case `AttributeValueType.N` for number.
 
-The same I can do for transforming the `LocalDateTime` to a string that represents a timestamp with UTC offset.
+The same I can do for transforming the `LocalDateTime` to a string that represents a timestamp in UTC.
 
-In the next step I need to tell *DynamoDB* to use the converter for serializing and deserializing the `UserEntity`.
+In the next step I need to tell *DynamoDB* to use the converter for serializing and deserializing the `UserEntity` when storing or retrieving from database.
 
 [source, kotlin]
 ----
@@ -231,10 +228,10 @@ That's all. With this I can use the `UserEntity` and the data is persisted in th
 ----
 
 === Best Practices for Using Converters
-- *Consistency*: Ensure that converters are consistently transforming data without changing it to maintain data integrity.
+- *Consistency*: Ensure that converters are consistently transforming data without changing it during serialization and deserialization process, to maintain data integrity.
 - *Performance*: Optimize serialization and deserialization logic to minimize latency, especially for large or deeply nested objects.
 - *Error Handling*: Implement robust error handling to manage serialization/deserialization failures gracefully.
-Versioning: If your custom data types evolve, manage versioning to handle different object schemas within your application.
+- *Versioning*: If your custom data types evolve, manage versioning to handle different object schemas within your application.
 
 
 == Batch Processing for Read and Write Operations
@@ -243,13 +240,12 @@ Versioning: If your custom data types evolve, manage versioning to handle differ
 === Batch Read Operations: BatchGetItem
 `BatchGetItem` allows me to retrieve multiple items from one or more tables in a single request. It's an efficient way to fetch data when I need multiple items simultaneously.
 
-- Up to 100 items: I can request up to 100 items per `BatchGetItem` call.
-- Multiple Tables: Supports fetching items from multiple tables in a single request.
-- Consistent Reads: Optionally use strongly consistent reads.
+- *Up to 100 items*: I can request up to 100 items per `BatchGetItem` call.
+- *Multiple Tables*: Supports fetching items from multiple tables in a single request.
+- *Consistent Reads*: Optionally use strongly consistent reads.
 
 For the execution of the `batchGetItem` - function I need to first create a `ReadBatch` and add the
-necessary `Key` for every item, that I want to load. In case of the `UserEntity` the primary key only consists
-of the partition key (`userId`). With the `ReadBatch` I can create a `BatchGetItemEnhancedRequest` that can
+necessary `Key` for every item, that I want to load. In case of the `UserEntity` the primary key only consists of the partition key (`userId`). With the `ReadBatch` I can create a `BatchGetItemEnhancedRequest` that can
 be called on the `DynamoDbEnhancedAsyncClient`. As you can see this operation is not available on the `DynamoDbAsyncTable`. The consuming of the available result works similar as the consuming the result of a scan operation.
 
 [source,kotlin]
@@ -270,11 +266,11 @@ be called on the `DynamoDbEnhancedAsyncClient`. As you can see this operation is
 === Batch Write Operations: BatchWriteItem
 `BatchWriteItem` enables me to perform multiple put or delete operations across one or more tables in a single API call.
 
-- Up to 25 requests: I can include up to 25 `PutRequest` or `DeleteRequest` actions.
-- Atomicity: Each individual operation within the batch is atomic, but the entire batch is not transactional.
-- Retries: Handles unprocessed items by allowing you to retry failed operations.
+- *Up to 25 requests*: I can include up to 25 `PutRequest` or `DeleteRequest` actions.
+- *Atomicity*: Each individual operation within the batch is atomic, but the entire batch is not transactional.
+- *Retries*: Handles unprocessed items by allowing me to retry failed operations.
 
-Below, you can find the example for persisting a list of users. This works the same for the deletion of multiple users.
+Below, there is an example of persisting a list of users. This works the same for the deletion of multiple users or event mixing both operations.
 [source, kotlin]
 ----
 suspend fun batchWrite(userList: List<User>) {
@@ -308,7 +304,7 @@ suspend fun batchWrite(userList: List<User>) {
 
     }
 ----
-Comparing to the `batchGetItem` - method the `batchWriteItem` - method needs some additional functionality. In case the inserting or deleting does not successfully process all items in the first round; as a result, I get a list of unprocessed items. So it is possible for me to retry the processing again. In the above example, I use a simple mechanism that retries at maximum 3 times before an exception is thrown.
+Comparing to the `batchGetItem` - method the `batchWriteItem` - method needs some additional functionality. In case the inserting or deleting does not successfully process all items in the first round; as a result, I get a  not empty list of unprocessed items. So it is possible for me to retry the processing again. In the above example, I use a simple mechanism that retries at maximum 3 times before an exception is thrown on not all items processed.
 
 === Best Practices for batch processing:
 
@@ -363,7 +359,7 @@ I start with the `jobStatus` filter expression:
      }
  }
 ----
-The `scan` - method has an additional parameter `ScanEnhancedRequest` which can take a filter expression. The filter expression consists of an expression _#jobStatus = :jobStatus_ and the specification of the placeholders that are part of the expression. In the above example, I want to filter for the `jobStatus` property with the value that was given as parameter. The `JobStatus` type needs to be given as `AttributeValue` type that matches the type of the property. The collection of the matching items is working the same as for the `findAll` - method.
+The `scan` - method has an additional parameter `ScanEnhancedRequest` which can take a filter expression. The filter expression consists of an expression _jobStatus = :jobStatus_ and the specification of the placeholders that are part of the expression. In the above example, I want to filter for the `jobStatus` property with the value that was given as parameter. The `JobStatus` type needs to be given as `AttributeValue` type that matches the type of the property. The collection of the matching items is working the same as for the `findAll` - method.
 
 '''
 
@@ -385,7 +381,7 @@ The next filter expression is the one for the `name`:
      }
  }
 ----
-The general creation of the filter expression is the same as in the previous example, there are just two differences. The property I want to filter for is `name` and this is a reserved keyword in *DynamoDB* (see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html[reserved keywords] for a complete  list). So if I use the same syntax as in the previous example, there would be an exception when using the method.
+The general creation of the filter expression is the same as in the previous example, there are just two differences. The property I want to filter for is `name` and this is a reserved keyword in *DynamoDB* (see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html[Link] for a complete  list of reserved keywords). So if I use the same syntax as in the previous example, there would be an exception when using the method.
 
 [source,kotlin]
 ----
@@ -396,7 +392,7 @@ software.amazon.awssdk.services.dynamodb.model.DynamoDbException: Invalid Filter
 
 To prevent this, I also use a placeholder for the `name` of the property I want to use in the expression string and put the name of the property by calling the `putExpressionName` - function.
 
-The other difference is that I use an available function of *DynamoDB* `begins_with`, that automatically checks if the property of an item starts with the given string value.
+The other difference is, that I use an available function of *DynamoDB* `begins_with`, that automatically checks if the property of an item starts with the given string value.
 
 '''
 
@@ -418,7 +414,7 @@ The last example is the filter expression for all users created in time range:
  }
 
 ----
-For this filter expression I use the keyword `BETWEEN` to search for all items in a time range. The same options as for query conditionals are also available for filter expressions.
+For this filter expression I use the keyword `BETWEEN` to search for all items in a time range. The same conditions as for query conditionals are also available for filter expressions.
 
 === Best Practices:
 - *Use Projections*: Limit the attributes returned by using a projection expression to reduce the size of the response.
@@ -460,8 +456,7 @@ data class UserEntity(
 ----
 
 ==== Setting the TTL Value for Users
-In this example, when creating or updating a user, I can assign the expirationTime attribute. This would typically be set to a timestamp (in Unix epoch time format) that indicates when the user should be deleted.
-For instance, if I want to expire a user record after 30 days of inactivity, I can calculate the expiration timestamp when creating or updating the user.
+In this example, when creating or updating a user, I can assign the `expirationTime` attribute. This would typically be set to a timestamp (in Unix epoch time format) that indicates when the user should be deleted. For instance, if I want to expire a user record after 30 days of inactivity, I can calculate the expiration timestamp when creating or updating the user.
 
 In the first step, I need to enable TTL for the `UserEntity`. I use the AWS cli for this.
 [source, bash]
@@ -481,15 +476,17 @@ The result will be:
     }
 }
 ----
+In the next step I need to set the `expirationTime` in all necessary items.
+
 That's all. From now on *DynamoDB* will automatically delete all user items if the value of the `expirationTime` property is in the past. The items are not directly deleted but within the next hours after expiration. So it is important to not rely on the behavior that expired items are directly no longer available.
 
 == Sparse Index
-A sparse index in *DynamoDB* refers to a type of index that contains only a subset of items from the base table. This is achieved by creating an index that includes only the items where the indexed attribute is present (i.e., not null). Sparse indexes are an efficient way to manage large datasets when I want to index only relevant items.
+A sparse index in *DynamoDB* refers to a type of index that contains only a subset of items from the base table. This is achieved by creating an index that includes only the items where the indexed attribute is present (not null). Sparse indexes are an efficient way to manage large datasets when I want to index only relevant items.
 
 === How Sparse Indexes Work:
 In *DynamoDB*, a Global Secondary Indexes (GSIs) can be sparse.
 An index is considered sparse because only items in the base table that have a value for the indexed attribute are included in the index. Items that do not have the attribute (or have it as null) are excluded from the index.
-This feature is particularly useful when I want to create a secondary index on a table, but you only care about indexing a small subset of the table's items.
+This feature is particularly useful when I want to create a secondary index on a table, but I only care about indexing a small subset of the table's items.
 
 === Benefits of Sparse Indexes:
 - *Reduced Storage Costs*: Since only items with the indexed attribute are included, I save on storage costs because fewer items are stored in the index.
@@ -497,12 +494,11 @@ This feature is particularly useful when I want to create a secondary index on a
 - *Targeted Indexing*: I can use sparse indexes to track only items with certain conditions, like expired items, orders in a certain status, or items flagged for review.
 
 === Use Case Example: Users with Expiration Time
-In the section about TTL I marked items of the user table with an `expirationTime` to let the DynamoDB automatically delete them after reaching the expiration. I can also create a sparse index to track only users that have an `expirationTime` attribute, such as when managing temporary or inactive accounts.
+In the section about TTL I marked items of the user table with an `expirationTime` to let the *DynamoDB* automatically delete them after reaching the expiration. I can also create a sparse index to track only users that have an `expirationTime` attribute, such as when managing temporary or inactive accounts.
 
-Example: Creating a Sparse GSI on expirationTime
 Let's say I want to create a Global Secondary Index (GSI) that tracks only users that have an expirationTime attribute. This is useful if you want to query for users whose accounts are expiring soon.
 
-Base Table: The base table is the UserTable with the following attributes:
+The base table is the `UserEntity` from above. To create the sparse index I need to execute the below command using the AWS cli.
 
 [source, bash]
 ----
@@ -515,7 +511,7 @@ aws dynamodb update-table \
 ----
 
 - Attribute Definitions: I define `expirationTime` as the indexed attribute.
-- Global Secondary Index (GSI): I create a new GSI named `ExpirationTimeIndex`, where the partition key is `expirationTime`.
+- Global Secondary Index (GSI): I create a new GSI named `User-ExpirationTime-index`, where the partition key is `expirationTime`.
 - Projection: ProjectionType=ALL means that all attributes from the base table (not just the key attributes) are projected into the index.
 
 Now that I've created a sparse index on `expirationTime`, I can query the index to retrieve only users who have an expiration time. Here's an example of a query to fetch users whose expirationTime is in the past.
@@ -539,24 +535,24 @@ suspend fun findAllExpired(): List<User> {
 The filter expression is performant because the index only contains items with an `expirationTime` property. This only makes sense if the `expirationTime` is only set on a small number of items.
 
 === When to Use Sparse Indexes?
-- *Optional Attributes*: If an attribute is optional or only applies to a subset of items, you can create a sparse index to track only items where this attribute is present.
+- *Optional Attributes*: If an attribute is optional or only applies to a subset of items, I can create a sparse index to track only items where this attribute is present.
 - *Time-Based Data*: Sparse indexes are great for time-based data, such as expiration dates, where you only care about indexing items that will expire soon or items that need to be processed within a certain time frame.
-- *Flagged Data*: If you have a flag attribute (e.g., isArchived, isDeleted, etc.), you can create a sparse index to track only items where that flag is set, reducing the overhead of scanning the entire table.
+- *Flagged Data*: If I have a flag attribute (e.g., isArchived, isDeleted, etc.), I can create a sparse index to track only items where that flag is set, reducing the overhead of scanning the entire table.
 
 == Conclusion
-*DynamoDB* offers a wide array of features that make it a powerful and flexible database solution, capable of handling a diverse range of use cases efficiently. In this post, I explored several key features, including converters for custom data types, batch processing, filter expressions, Time to Live (TTL), and sparse indexes, each of which enhances the overall usability of *DynamoDB*.
+In this post, I explored several additional key features of *DynamoDB*, including converters for custom data types, batch processing, filter expressions, Time to Live (TTL), and sparse indexes, each of which enhances the overall usability.
 
 Converters for Custom Data Types: By using custom converters, *DynamoDB* allows seamless storage and retrieval of complex data types, such as `LocalDateTime` or enumerations, making it easier to work with domain-specific objects in a type-safe way. This provides developers the flexibility to integrate *DynamoDB* with object models without needing to manually serialize or deserialize them.
 
-Batch Processing for reads and writes: Batch operations significantly enhance throughput by allowing multiple read or write operations in a single API call. Whether you're fetching multiple items with BatchGetItem or inserting/updating items with BatchWriteItem, batch processing helps optimize performance by reducing the number of individual calls, thus reducing latency and improving overall system efficiency.
+Batch Processing for reads and writes: Batch operations significantly enhance throughput by allowing multiple read or write operations in a single API call. Whether I'm fetching multiple items with `batchGetItem` or inserting/updating items with `batchWriteItem`, batch processing helps optimize performance by reducing the number of individual calls, thus reducing latency and improving overall system efficiency.
 
-Filter Expressions: These allow fine-grained control over the data you retrieve from a scan or query operation. I can filter items based on attributes, ranges, or conditions, ensuring that you fetch only the relevant data without loading unnecessary items. Filter expressions can also be combined with various attributes, like createdAt or jobStatus, to make your queries more targeted and efficient.
+Filter Expressions: These allow fine-grained control over the data I retrieve from a scan or query operation. I can filter items based on attributes, ranges, or conditions, ensuring that you fetch only the relevant data without loading unnecessary items. Filter expressions can also be combined with various attributes to make my queries more targeted and efficient.
 
-TTL (Time to Live): TTL provides a mechanism for automatically expiring and deleting items after a certain period. This feature is incredibly useful for use cases like session management or expiring temporary data, as it automates the cleanup of stale data, reducing storage costs and keeping your dataset lean without consuming write capacity.
+TTL (Time to Live): TTL provides a mechanism for automatically expiring and deleting items after a certain period. This feature is incredibly useful for use cases like session management or expiring temporary data, as it automates the cleanup of stale data, reducing storage costs and keeping my dataset lean without consuming write capacity.
 
-Sparse Indexes: Sparse indexes give me the power to index only a subset of items that contain specific attributes. This is an efficient approach when you want to focus on data that meets certain conditions, such as items with expiration times or flagged statuses. Sparse indexes are a great tool for optimizing query performance while saving on storage and maintaining targeted access to my data.
+Sparse Indexes: Sparse indexes give me the power to index only a subset of items that contain specific attributes. This is an efficient approach when I want to focus on data that meets certain conditions, such as items with expiration times or flagged statuses. Sparse indexes are a great tool for optimizing query performance while saving on storage and maintaining targeted access to my data.
 
-That's it for now with my series about *DynamoDB*. I covered all the topics that have been relevant for me in the last months since I started using `DynamoDB` as persistence storage in one of my production projects. There are a lot of other topics around *DynamoDB* available, that I haven't touched until now, so maybe there will be an additional fourth part in the future.
+That's it for now with my series about *DynamoDB*. I covered all the topics that have been relevant for me in the last months since I started using `DynamoDB` as persistence storage in one of my production projects. There are surely a lot of other topics around *DynamoDB* available, that I haven't touched until now, so maybe there will be an additional fourth part in the future.
 
 '''
 
