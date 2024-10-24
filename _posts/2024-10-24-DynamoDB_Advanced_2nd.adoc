@@ -1,6 +1,6 @@
 = How to start with DynamoDB in your Ktor application (Part 3)
 :imagesdir: /assets/images/posts/2024/09/22
-:page-excerpt: Learn about advanced topics.
+:page-excerpt: Learn about advanced topics like converters, TTL and sparse indexes.
 :page-tags: [kotlin, software, engineering, dynamodb, ktor]
 :revdate: 2024-10-24
 
