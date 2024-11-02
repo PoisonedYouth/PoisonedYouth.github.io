@@ -27,7 +27,7 @@ Instead of a class implementing Printer directly, it can delegate the implementa
 ----
 class ConsolePrinter : Printer {
     override fun print(value: String) {
-        println("Printing String '$value'to console")
+        println("Printing String '$value' to console")
     }
 
     override fun print(value: Int) {
@@ -43,8 +43,8 @@ fun main() {
     document.print(42)
 
     //Output:
-    //Printing String 'Hello World!'to console
-    //"Printing Int '42' to console"
+    //Printing String 'Hello World!' to console
+    //Printing Int '42' to console
 }
 ----
 Here, the `Document` class implements `Printer` by delegating all `Printer` methods to the printer object provided during its instantiation. The `Document` class can optionally overwrite one of the methods but this is not necessary.
