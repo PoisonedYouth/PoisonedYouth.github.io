@@ -1,6 +1,6 @@
-= How to start with Kafka in Kotlin applications (Part 1)
+= How to start with Kafka basics and use in Kotlin
 :imagesdir: /assets/images/posts/2024/11/07
-:page-excerpt: Discover the power of event-driven architecture with Apache Kafka and Kotlin - setting up producer and consumer while exploring the fundamentals of this robust and scalable platform.
+:page-excerpt: Discover the power of Kafka and Kotlin - setting up producer and consumer while exploring the fundamentals of this robust and scalable platform.
 :page-tags: [kotlin, software, engineering, kafka, kotlin]
 :revdate: 2024-11-07
 
@@ -99,7 +99,7 @@ services:
       - "8080:8080"
     restart: "always"
     environment:
-      KAFKA_CLUSTERS_0_NAME: "SpringKafkaCluster"
+      KAFKA_CLUSTERS_0_NAME: "MyFirstKafkaCluster"
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9094
       KAFKA_BROKERCONNECT: kafka:9094
       DYNAMIC_CONFIG_ENABLED: 'true'
@@ -623,6 +623,9 @@ fun main(): Unit = runBlocking {
 ----
 The `produceInfiniteMessages` - function creates messages in a while - loop, that are processed by both consumers.
 
+== Kotlin Kafka
+
+If you want to use a more Kotlin idiomatic solution for writing code to connect to *Kafka* you can have a look on https://github.com/nomisRev/kotlin-kafka?tab=readme-ov-file[Kotlin Kafka] of Simon Vergauwen. Because the examples in this post should only give an introduction to understand Kafka, I omitted this (also for the Java SDK more code examples are available to search for).
 
 == Conclusion
 In today's post, I introduced the essentials of *Kafka*, covering its core architecture and the fundamental components, including producers, consumers, brokers, and topics. I explored how *Kafka*’s distributed nature and partitioning model support scalability, and I touched on its message retention and fault tolerance mechanisms, which enable high-throughput, reliable messaging for real-time data processing.
