@@ -1,4 +1,4 @@
-= How to start with Kafka basics and use in Kotlin
+= How to start with Kafka basics and use it in Kotlin
 :imagesdir: /assets/images/posts/2024/11/07
 :page-excerpt: Discover the power of Kafka and Kotlin - setting up producer and consumer while exploring the fundamentals of this robust and scalable platform.
 :page-tags: [kotlin, software, engineering, kafka, kotlin]
